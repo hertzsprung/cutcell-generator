@@ -18,22 +18,42 @@ class DomainSpec:
         for z in self.horizontalFacePositions():
             for x in self.verticalFacePositions():
                 vertices.append((x, z))
-        return Mesh(vertices)
+
+        mesh = Mesh(vertices)
+
+        for z in self.horizontalFacePositions():
+            for xLeft, xRight in self.verticalFacePositionPairs():
+                vertexLeft = mesh.vertexIndex((xLeft, z))
+                vertexRight = mesh.vertexIndex((xRight, z))
+                mesh.addFace([vertexLeft, vertexRight]) 
+
+        for x in self.verticalFacePositions():
+            for zBottom, zTop in self.horizontalFacePositionPairs():
+                vertexBottom  = mesh.vertexIndex((x, zBottom))
+                vertexTop = mesh.vertexIndex((x, zTop))
+                mesh.addFace([vertexBottom, vertexTop]) 
+
+        return mesh
 
     def verticalFacePositions(self):
         return [self.xMin + self.dx * i for i in range(0, self.nx+1)]
 
     def verticalFacePositionPairs(self):
-        return zip( \
-                self.verticalFacePositions(), \
-                self.verticalFacePositions()[1:])
+        return self.pairs(self.verticalFacePositions())
 
     def horizontalFacePositions(self):
         return [self.dz * k for k in range(0, self.nz+1)]
 
+    def horizontalFacePositionPairs(self):
+        return self.pairs(self.horizontalFacePositions())
+
+    def pairs(self, l):
+        return zip(l, l[1:])
+
 class Mesh:
     def __init__(self, vertices):
         self.vertices = vertices
+        self.faces = []
 
     def addVertex(self, v):
         self.vertices.append(v)
@@ -44,6 +64,12 @@ class Mesh:
     def removeVertices(self, removals):
         for v in removals:
             self.vertices.remove(v)
+
+    def vertexIndex(self, v):
+        return self.vertices.index(v)
+
+    def addFace(self, f):
+        self.faces.append(f)
 
 class Shaver:
     def shave(self, mesh, domainSpec, mountain):
@@ -76,13 +102,24 @@ class SchaerCosMountain:
         else:
             return 0
 
-def printVertices(mesh):
+def printVertices(mesh, fh):
     for v in mesh.vertices:
-        print(v[0], v[1])
+        print(v[0], v[1], file=f)
+
+def printFaces(mesh, fh):
+    for f in mesh.faces:
+        v1 = mesh.vertices[f[0]]
+        v2 = mesh.vertices[f[1]]
+        print(v1[0], v1[1], v2[0], v2[1], file=fh)
 
 domain = DomainSpec(25e3, 15e3, 50, 15)
 mesh = domain.toMesh()
 mountain = SchaerCosMountain(5e3, 5e3, 4e3);
 shaver = Shaver()
-shaver.shave(mesh, domain, mountain)
-printVertices(mesh)
+#shaver.shave(mesh, domain, mountain)
+
+with open('vertices.dat', 'w') as f:
+    printVertices(mesh, f)
+
+with open('faces.dat', 'w') as f:
+    printFaces(mesh, f)
